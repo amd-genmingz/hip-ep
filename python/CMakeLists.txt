@@ -45,18 +45,16 @@ if(NOT TARGET ${_ep_target})
     "EP target '${_ep_target}' not found; cannot build the Python wheel.")
 endif()
 
-# The JIT compiler plugin (hip-compiler.dll) is loaded at runtime by the EP via
-# Plugin::get("hip-compiler"); it MUST ship in the wheel or model compilation
-# falls back to whatever (possibly stale) hip-compiler is on PATH.
+# The JIT compiler is linked into the EP itself and reached through the
+# in-process plugin registry (Plugin::get("hip-compiler")), so the wheel ships
+# no separate compiler library. A wheel built without BUILD_HIP_TOOLS has no
+# compiler at all and cannot JIT-compile models.
 set(_dll_args "--dll" "$<TARGET_FILE:${_ep_target}>")
 set(_wheel_deps ${_ep_target})
-if(TARGET hip-compiler-dll)
-  list(APPEND _dll_args "--dll" "$<TARGET_FILE:hip-compiler-dll>")
-  list(APPEND _wheel_deps hip-compiler-dll)
-else()
+if(NOT TARGET HipCInterface)
   message(WARNING
-    "hip-compiler-dll target not found (BUILD_HIP_TOOLS=OFF?); the wheel will "
-    "not be able to JIT-compile models. Build with BUILD_HIP_TOOLS=ON.")
+    "HipCInterface target not found (BUILD_HIP_TOOLS=OFF?); the EP in this "
+    "wheel cannot JIT-compile models. Build with BUILD_HIP_TOOLS=ON.")
 endif()
 
 if(WIN32)
@@ -103,9 +101,9 @@ add_custom_target(wheel ALL
   COMMAND ${CMAKE_COMMAND} -E copy
           "${_pkg_src}/setup.py"
           "${_stage}/"
-  # 2. Stage native artifacts (EP lib + hip-compiler + per-arch custom-kernels
-  #    runtime DLLs/SOs + CRT import libs) into the onnxruntime/capi namespace
-  #    package dir so the wheel ships them at onnxruntime/capi/ (platlib).
+  # 2. Stage native artifacts (EP lib + per-arch custom-kernels runtime
+  #    DLLs/SOs + CRT import libs) into the onnxruntime/capi namespace package
+  #    dir so the wheel ships them at onnxruntime/capi/ (platlib).
   COMMAND ${CMAKE_COMMAND} -E rm -rf "${_libs_dir}"
   COMMAND ${Python3_EXECUTABLE} "${_pkg_src}/_pack_libs.py"
           ${_dll_args}

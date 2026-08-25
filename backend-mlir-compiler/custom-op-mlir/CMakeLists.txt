@@ -77,6 +77,13 @@ endif()
 # Define MORPHIZEN_CUSTOM_OP for conditional compilation
 target_compile_definitions(${LIB_NAME} PRIVATE "MORPHIZEN_CUSTOM_OP=1")
 
+# plugin_registration.cpp takes the address of the hip-compiler C API, whose
+# definition (HipCInterface) is linked into this same module. Without this define
+# compiler_api.h declares the entry points dllimport and the reference would need
+# an __imp_ thunk that a static archive cannot provide. Matches how lib/CInterface
+# compiles CompilerAPI.cpp.
+target_compile_definitions(${LIB_NAME} PRIVATE HIP_COMPILER_EXPORTS)
+
 if(HIPDNN_EP_LINK_HIP_HOST)
   target_compile_definitions(${LIB_NAME} PRIVATE "HIPDNN_EP_LINK_HIP_HOST=1")
 endif()
@@ -94,6 +101,10 @@ target_link_libraries(${LIB_NAME} PRIVATE
   # to add plugin bitcode + libraries to the JITDylib on the default JIT path.
   # Defined in lib/Compiler; no dependency cycle (it never links this lib).
   LibHipCompiler
+  # hip_compile_with_fs / hip_get_version, registered as an in-process plugin by
+  # compiler_plugin_registration.cpp. This is the edge that makes the compiler
+  # part of the EP instead of a separately loaded hip-compiler.dll.
+  HipCInterface
 )
 # Native current-stream accessor: LlvmIrJit registers hipdnn_ep_get/set_current_
 # stream as absolute JIT symbols, so the host must define them. The reference in

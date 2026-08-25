@@ -31,3 +31,10 @@ install(TARGETS HipCInterface
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
 )
+
+# Public C API headers. Installed alongside the library that implements them;
+# they used to be installed by the (now removed) hip-compiler.dll target.
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/hip
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h"
+)

@@ -187,8 +187,6 @@ if(BUILD_HIP_TOOLS)
     add_subdirectory(backend-mlir-compiler)
   endif()
 
-  # DLL target (hip-compiler.dll)
-  add_subdirectory(dll)
 
   # Executable targets
   add_subdirectory(tools)
@@ -247,9 +245,9 @@ if(BUILD_HIP_TOOLS)
   endforeach()
 endif()
 
-# Python wheel packaging (opt-in; defines the 'wheel' target). Added last so
-# both the EP target (morphizen_CORE_DYNAMIC_UNIQUE_ID, from deps.cmake) and the
-# JIT compiler plugin target (hip-compiler-dll, from BUILD_HIP_TOOLS) exist.
+# Python wheel packaging (opt-in; defines the 'wheel' target). Added last so the
+# EP target (morphizen_CORE_DYNAMIC_UNIQUE_ID, from deps.cmake) and the per-arch
+# custom-kernels targets exist.
 if(BUILD_EP AND BUILD_PYTHON_WHEEL)
   add_subdirectory(python)
 endif()
