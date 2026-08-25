@@ -19,9 +19,7 @@ namespace {
 static ::morphizen::StaticPluginRegister
     __register("morphizen_custom_op_MLIR", "create_execution_provider",
                reinterpret_cast<void *>(&create_execution_provider_imp));
-}
 
-namespace {
 static ::morphizen::StaticPluginRegister
     __register_hip_compile("hip-compiler", "hip_compile_with_fs",
                            reinterpret_cast<void *>(&hip_compile_with_fs));

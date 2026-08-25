@@ -11,10 +11,6 @@ target_include_directories(HipCInterface PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_compile_definitions(HipCInterface PRIVATE
-    HIP_COMPILER_EXPORTS
-)
-
 target_link_libraries(HipCInterface PUBLIC
     LibHipCompiler
     HipSchemasLib

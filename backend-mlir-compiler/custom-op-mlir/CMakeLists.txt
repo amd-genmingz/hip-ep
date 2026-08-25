@@ -77,13 +77,6 @@ endif()
 # Define MORPHIZEN_CUSTOM_OP for conditional compilation
 target_compile_definitions(${LIB_NAME} PRIVATE "MORPHIZEN_CUSTOM_OP=1")
 
-# plugin_registration.cpp takes the address of the hip-compiler C API, whose
-# definition (HipCInterface) is linked into this same module. Without this define
-# compiler_api.h declares the entry points dllimport and the reference would need
-# an __imp_ thunk that a static archive cannot provide. Matches how lib/CInterface
-# compiles CompilerAPI.cpp.
-target_compile_definitions(${LIB_NAME} PRIVATE HIP_COMPILER_EXPORTS)
-
 if(HIPDNN_EP_LINK_HIP_HOST)
   target_compile_definitions(${LIB_NAME} PRIVATE "HIPDNN_EP_LINK_HIP_HOST=1")
 endif()
