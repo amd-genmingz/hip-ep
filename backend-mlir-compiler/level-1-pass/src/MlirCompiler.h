@@ -53,9 +53,13 @@ struct CompilationArtifact {
  * MLIR compiler driver that dispatches to the hip-compiler plugin C API.
  *
  * `compileFromBytecode` serializes the provided MLIR bytecode, calls
- * `hip_compile_with_fs` in `hip-compiler.dll`, and reads back the
- * resulting per-model LLVM bitcode artifact for inclusion in the
- * EPContext tar. The downstream EP loads it via LlvmIrJit.
+ * `hip_compile_with_fs`, and reads back the resulting per-model LLVM bitcode
+ * artifact for inclusion in the EPContext tar. The downstream EP loads it via
+ * LlvmIrJit.
+ *
+ * The compiler is linked into the EP and registered as an in-process MorphiZen
+ * plugin (custom-op-mlir/src/plugin_registration.cpp), so the call resolves to
+ * a function pointer in this module -- no compiler shared library is loaded.
  *
  * NOTE: Mock runtime is not supported. The hip-compiler plugin always
  * targets the real HIP/ROCm runtime; ML inference on a host without

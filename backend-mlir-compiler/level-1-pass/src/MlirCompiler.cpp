@@ -7,6 +7,7 @@
 
 // CRITICAL: morphizen.hpp must be included before any other morphizen headers
 #include "../../common/temp_path.hpp"
+#include "CrashHandler.h"
 #include "morphizen/env_config.hpp"
 #include "morphizen/morphizen.hpp"
 #include "morphizen/plugin.hpp"
@@ -66,19 +67,43 @@ MlirCompiler::compileFromBytecode(const std::string &mlir_bytecode,
                                   const CompilationConfig &config,
                                   morphizen::FileSystem *fs) {
 
+  // The compiler runs in this process, so its crash handler has to be armed
+  // here; there is no compiler DLL whose DllMain could do it. Idempotent.
+  hip::install_crash_handlers("hip-compiler");
+
   LOG(INFO) << "Compiling MLIR bytecode using hip-compiler plugin";
   LOG(INFO) << "Bytecode size: " << mlir_bytecode.size() << " bytes";
 
-  // Load plugin via MorphiZen Plugin API
+  // The compiler is registered as an in-process plugin by the EP itself
+  // (custom-op-mlir/src/plugin_registration.cpp), so a lookup failure means
+  // this EP was linked without the compiler rather than that a shared library
+  // is missing from the install tree.
   auto plugin = morphizen::Plugin::get("hip-compiler");
   if (!plugin) {
-    LOG(ERROR) << "Failed to load hip-compiler plugin";
+    LOG(ERROR) << "hip-compiler plugin unavailable; this EP was built without "
+                  "the compiler (HipCInterface / BUILD_HIP_TOOLS)";
     return std::nullopt;
   }
 
-  // Get plugin version
-  auto version = plugin->invoke<const char *>("hip_get_version");
-  LOG(INFO) << "Plugin version: " << version;
+  // Resolve both entry points before doing any work: Plugin::invoke() aborts
+  // the process when a symbol is missing, so a partially registered plugin has
+  // to be diagnosed here.
+  auto get_version = plugin->get_method<const char *>("hip_get_version");
+
+  // Explicit types avoid template forwarding-ref issues.
+  auto compile =
+      plugin->get_method<CompilerErrorCode, const void *, size_t, const char *,
+                         const char *, CompilerError *, void *>(
+          "hip_compile_with_fs");
+
+  if (get_version == nullptr || compile == nullptr) {
+    LOG(ERROR) << "hip-compiler plugin is incomplete: hip_get_version="
+               << (void *)get_version
+               << " hip_compile_with_fs=" << (void *)compile;
+    return std::nullopt;
+  }
+
+  LOG(INFO) << "Plugin version: " << get_version();
 
   // Generate temporary output path for compilation. The compiler always
   // emits bitcode; no extension required.
@@ -87,41 +112,16 @@ MlirCompiler::compileFromBytecode(const std::string &mlir_bytecode,
   // Build JSON options string from config
   std::string options_json = build_compiler_options_json(config);
 
-  LOG(INFO) << "Compilation options (JSON): " << options_json;
-
-  // Check if symbol exists
-  if (!plugin->has_method("hip_compile_with_fs")) {
-    LOG(ERROR) << "Symbol 'hip_compile_with_fs' NOT found in DLL";
-    return std::nullopt;
-  }
-
   LOG(INFO) << "Calling hip_compile_with_fs with JSON options: "
             << options_json;
 
-  // Get method with explicit types (avoids template forwarding ref issues)
-  // Signature: CompilerErrorCode (*)(const void*, size_t, const char*, const
-  // char*, CompilerError*, void* fs)
-  auto func =
-      plugin->get_method<CompilerErrorCode, const void *, size_t, const char *,
-                         const char *, CompilerError *, void *>(
-          "hip_compile_with_fs");
-
-  MY_LOG(2) << "get_method returned func = " << (void *)func;
   MY_LOG(2) << "Bytecode data() = " << (void *)mlir_bytecode.data();
   MY_LOG(2) << "Bytecode size() = " << mlir_bytecode.size();
 
-  if (func == nullptr) {
-    LOG(ERROR) << "get_method returned nullptr for hip_compile_with_fs";
-    return std::nullopt;
-  }
-
-  // Call the function with binary-safe parameters
-  MY_LOG(2) << "About to call func with size = " << mlir_bytecode.size();
-
   CompilerError error = {};
-  auto result =
-      func(mlir_bytecode.data(), mlir_bytecode.size(), temp_output_path.c_str(),
-           options_json.c_str(), &error, fs);
+  auto result = compile(mlir_bytecode.data(), mlir_bytecode.size(),
+                        temp_output_path.c_str(), options_json.c_str(), &error,
+                        fs);
 
   if (result != COMPILER_SUCCESS) {
     LOG(ERROR) << "Compilation failed: " << error.message;

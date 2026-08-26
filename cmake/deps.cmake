@@ -470,8 +470,9 @@ endif()  # BUILD_EP
 # ===========================================================================
 
 # flatbuffers (the schemas/ + lib/* targets consume flatbuffers::flatbuffers +
-# flatc; no EP-side target links it -- the EP loads hip-compiler.dll, which
-# carries flatbuffers, at runtime).
+# flatc). Gated on BUILD_HIP_TOOLS because that is also what brings the compiler
+# -- and with it HipSchemasLib and flatbuffers -- into the EP; a BUILD_EP-only
+# tree links neither.
 # Version-pinned: the schemas use string field defaults under --gen-object-api,
 # which require flatc >= the pinned version. An older flatbuffers that happens
 # to sit on CMAKE_PREFIX_PATH (e.g. TheRock bundles an older one) is rejected

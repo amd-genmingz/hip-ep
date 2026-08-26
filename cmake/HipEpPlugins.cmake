@@ -189,9 +189,9 @@ endfunction()
 # is the canonical trigger; a plugin-free build is only accidentally safe
 # because --as-needed drops the shared libLLVM.
 #
-# The DLLs are already protected by their --version-script (local: *); the tool
-# executables have no such script, so hide every static-archive symbol from the
-# dynamic table here. This matches the idiom LLVM uses on its own tools and does
+# The EP shared library is already protected by its --version-script (local: *);
+# the tool executables have no such script, so hide every static-archive symbol
+# from the dynamic table here. This matches the idiom LLVM uses on its own tools and does
 # not affect JIT symbol resolution (LlvmIrJit resolves runtime symbols from the
 # JIT'd runtime bitcode + absoluteSymbols + DT_NEEDED shared libs, never from the
 # executable's own .dynsym). No-op off ELF -- Mach-O/PE have no cross-module

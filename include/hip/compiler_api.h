@@ -8,13 +8,23 @@
 
 #include "compiler_types.h"
 
-/* Export macro for DLL visibility */
-#ifdef _WIN32
-#ifdef HIP_COMPILER_EXPORTS
+/* Linkage macro.
+ *
+ * This API only ever ships inside the HipCInterface static archive, which is
+ * absorbed into whatever binary needs it. On PE that means undecorated: a
+ * dllimport declaration would make callers bind through an __imp_ thunk that no
+ * import library provides, and dllexport would add the entry points to the host
+ * DLL's export table for nothing, since callers reach them through the
+ * in-process plugin registry rather than by name. Define HIP_COMPILER_EXPORTS
+ * only when building a shared library that must publish the API.
+ *
+ * ELF keeps default visibility: it costs nothing because the EP's version
+ * script and the tools' --exclude-libs already keep these names out of .dynsym.
+ */
+#if defined(_WIN32) && defined(HIP_COMPILER_EXPORTS)
 #define COMPILER_API __declspec(dllexport)
-#else
-#define COMPILER_API __declspec(dllimport)
-#endif
+#elif defined(_WIN32)
+#define COMPILER_API
 #else
 #define COMPILER_API __attribute__((visibility("default")))
 #endif

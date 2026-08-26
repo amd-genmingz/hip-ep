@@ -255,9 +255,9 @@ bool DLLLinker::linkDLL_Linux(const std::string &objectFile,
                               const std::vector<std::string> &libraryPaths) {
   // Delegate to `clang++ -shared` driver subprocess (vs in-process
   // lld::lldMain). Driver owns crt + sysroot + multiarch -L + libgcc + the
-  // glibc 2.34 libpthread merge. Subprocess because lldMain SIGSEGVs on
-  // its post-output cleanup when libhip-compiler.so is dlopen'd into the
-  // EP host process (Windows linkDLL_Windows stays in-process — lld-link
+  // glibc 2.34 libpthread merge. Subprocess because lldMain SIGSEGVs on its
+  // post-output cleanup when it runs inside a dlopen'd module, which is how the
+  // EP is always loaded (Windows linkDLL_Windows stays in-process — lld-link
   // doesn't have this cleanup bug). clang++ (not bare clang) auto-links
   // libstdc++ for the generated object's __cxa_begin_catch / __cxa_rethrow.
   std::string clangPath;
