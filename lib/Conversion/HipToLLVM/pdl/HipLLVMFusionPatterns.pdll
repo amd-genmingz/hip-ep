@@ -1,0 +1,26 @@
+//===- HipLLVMFusionPatterns.pdll -----------------------------------------===//
+//
+// Aggregate entry point for the HIP-level PDLL fusion patterns used by
+// convert-hip-to-llvm.
+//
+// Standalone parallel of lib/Conversion/OnnxToHip/pdl/HipFusionPatterns.pdll:
+// mlir-pdll compiles one input file at a time, so every pattern is collected
+// here into a single PDL module (one RewritePatternSet, one fixpoint).
+//
+// PDLL has no include guards, so the native constraints/rewrites are declared
+// once here and each pattern file - which carries only its Pattern definitions
+// - is included exactly once.
+//
+// Unlike the ONNX-level patterns, these root on hip.* ops: the chain has
+// already been converted to the HIP dialect. The scale/zero-point still ride
+// as operands, so the native helpers below read them off the operand values
+// directly (see pdl/hip_llvm_fusion_pass.hpp).
+//===----------------------------------------------------------------------===//
+
+// Native helpers (implemented in hip_llvm_fusion_pass.hpp).
+Constraint IsSplatConstant(val: Value);
+
+Rewrite ExtractScale(val: Value) -> Attr;
+Rewrite ExtractZeroPoint(val: Value) -> Attr;
+
+#include "QAddFusion.pdll"

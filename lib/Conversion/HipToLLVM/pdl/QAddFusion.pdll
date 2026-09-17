@@ -1,0 +1,58 @@
+//===- QAddFusion.pdll ----------------------------------------------------===//
+//
+// HIP-level PDLL pattern: hip.dequantize_linear x2 -> hip.add ->
+// hip.quantize_linear  =>  hip.qadd.
+//
+// Included by HipLLVMFusionPatterns.pdll, which declares the native helpers
+// used below. Not compilable on its own.
+//
+// The hip Q/DQ ops are destination-passing: their operand list is
+// (ctx, input, scale, zero_point, output_init). This pattern matches the
+// three-operand (zero_point present) form; the output init tensor.empty of the
+// terminating hip.quantize_linear is reused as the fused op's init.
+//
+// Fusability requires every scale to be a per-tensor splat constant; the
+// zero points are read the same way and default to 0 when unreadable is not
+// allowed here (they are bound operands). The resulting hip.qadd is lowered to
+// a single wrap_qelementwise call by QAddOpLowering.
+//===----------------------------------------------------------------------===//
+
+Pattern HipQDQAdd with benefit(10) {
+  let dq_lhs = op<hip.dequantize_linear>(lhs_ctx: Value, lhs: Value,
+                                         lhs_scale: Value, lhs_zp: Value,
+                                         lhs_init: Value);
+  let dq_rhs = op<hip.dequantize_linear>(rhs_ctx: Value, rhs: Value,
+                                         rhs_scale: Value, rhs_zp: Value,
+                                         rhs_init: Value);
+
+  let add = op<hip.add>(add_ctx: Value, dq_lhs.0, dq_rhs.0, add_init: Value);
+
+  let quant = op<hip.quantize_linear>(q_ctx: Value, add.0, out_scale: Value,
+                                      out_zp: Value, out_init: Value)
+                  -> (out_type: Type);
+
+  // Fusability only: every scale must be a per-tensor splat constant.
+  IsSplatConstant(lhs_scale);
+  IsSplatConstant(rhs_scale);
+  IsSplatConstant(out_scale);
+
+  rewrite quant with {
+    let lhs_scale_attr = ExtractScale(lhs_scale);
+    let rhs_scale_attr = ExtractScale(rhs_scale);
+    let out_scale_attr = ExtractScale(out_scale);
+    let lhs_zp_attr = ExtractZeroPoint(lhs_zp);
+    let rhs_zp_attr = ExtractZeroPoint(rhs_zp);
+    let out_zp_attr = ExtractZeroPoint(out_zp);
+
+    // Reuse the terminating quantize's init as the fused op's destination.
+    let qadd = op<hip.qadd>(q_ctx, lhs, rhs, out_init) {
+      lhs_scale = lhs_scale_attr,
+      lhs_zp = lhs_zp_attr,
+      rhs_scale = rhs_scale_attr,
+      rhs_zp = rhs_zp_attr,
+      output_scale = out_scale_attr,
+      output_zp = out_zp_attr
+    } -> (out_type);
+    replace quant with qadd;
+  };
+}

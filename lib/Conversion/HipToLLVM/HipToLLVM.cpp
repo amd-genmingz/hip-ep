@@ -4,16 +4,30 @@
  */
 
 #include "HipToLLVMUtils.h"
+#include "pdl/hip_llvm_fusion_pass.hpp"
 
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/IR/Dialect.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/MemoryBufferRef.h"
 #include "llvm/ADT/DenseSet.h"
+
+// The compiled HIP-level PDL fusion patterns, embedded as a byte array by
+// CMake (see CMakeLists.txt -> hip_llvm_pdl_fused_pattern_data.cpp). Nothing is
+// loaded from disk. Standalone parallel of OnnxToHip's
+// hip_pdl_fused_pattern_data / _size accessors.
+extern "C" const unsigned char *hip_llvm_pdl_fused_pattern_data(void);
+extern "C" size_t hip_llvm_pdl_fused_pattern_size(void);
 
 namespace mlir {
 namespace hip {
 
 #define GEN_PASS_DEF_CONVERTHIPTOLLVMPASS
 #include "hip/Dialect/Transforms/Passes.h.inc"
+
+// Buffer identifier for the embedded HIP-level PDL fusion module.
+constexpr llvm::StringLiteral kHipLLVMFusionPatternsName =
+    "HipLLVMFusionPatterns.pdl";
 
 namespace {
 
@@ -219,6 +233,24 @@ private:
 void ConvertHipToLLVMPass::runOnOperation() {
   ModuleOp module = getOperation();
   MLIRContext *ctx = module.getContext();
+
+  // HIP-level PDL fusion slot. Mirrors the embedded-PDL fusion step that
+  // convert-onnx-to-hip runs before its main lowering (OnnxToHip.cpp +
+  // pdl/qdq_fusion_pass.hpp), but as an independent framework rooted on hip.*
+  // ops (see pdl/hip_llvm_fusion_pass.hpp and pdl/*.pdll). It collapses a
+  // hip.* op chain into a single fused hip.* op (e.g. hip.qadd) which the
+  // ConvertOpToLLVMPattern set below then lowers into one runtime call
+  // (wrap_qelementwise). An empty blob (mlir-pdll unavailable) is a no-op.
+  {
+    const llvm::MemoryBufferRef pdlBuffer(
+        llvm::StringRef(
+            reinterpret_cast<const char *>(hip_llvm_pdl_fused_pattern_data()),
+            hip_llvm_pdl_fused_pattern_size()),
+        kHipLLVMFusionPatternsName);
+    if (!::hip::llvmfusion::run(module, pdlBuffer))
+      module.emitWarning()
+          << "Failed to apply the embedded HIP-level fusion PDL patterns";
+  }
 
   LowerToLLVMOptions options(ctx);
   LLVMTypeConverter typeConverter(ctx, options);
