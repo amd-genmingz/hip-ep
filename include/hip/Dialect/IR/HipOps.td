@@ -5828,6 +5828,44 @@ def Hip_ReadbackScalarOp : Hip_Op<"readback_scalar",
   }];
 }
 
+// hip.dump_tensor : debug instrumentation that writes the current contents of
+// a buffer to the tensor-dump directory. Inserted by --hip-insert-tensor-dump
+// only when HIPDNN_EP_DUMP_DIR is set at compile time; never present in
+// production IR.
+//
+//   hip.dump_tensor(%ctx) %buf {tensor_name = "/model/x", dtype = "float16",
+//                               index = 3 : i64} : memref<1x8x2048xf16>
+//
+// No memory effects are declared, so the op is conservatively treated as
+// reading and writing everything: it stays in program order right after the
+// op that produced `input`.
+def Hip_DumpTensorOp : Hip_Op<"dump_tensor"> {
+  let summary = "Copy a buffer to the host and write it to the dump directory";
+  let description = [{
+    Synchronizes the stream, copies `input` (honoring its offset and strides)
+    to the host, and writes it as a NumPy (NPY v1.0) file to
+    `<HIPDNN_EP_DUMP_DIR>/<sanitized tensor_name>.npy`, where every character
+    that is not an ASCII letter or digit is replaced with `_` (the ONNX Runtime
+    node-dump naming). `dtype` is the NumPy-style element type name recorded in
+    the dump index; `index` is the static insertion order used by the
+    HIPDNN_EP_DUMP_START / HIPDNN_EP_DUMP_END runtime filter.
+
+    Lowered to a call to `hipdnn_ep_dump_tensor` by convert-hip-to-llvm.
+  }];
+
+  let arguments = (ins
+    Hip_ContextType:$ctx,
+    AnyMemRef:$input,
+    StrAttr:$tensor_name,
+    StrAttr:$dtype,
+    I64Attr:$index
+  );
+
+  let assemblyFormat = [{
+    `(` $ctx `)` $input attr-dict `:` type($input)
+  }];
+}
+
 def Hip_QuantizeLinearOp : Hip_DpsOp_AutoReifyInfer<"quantize_linear"> {
   let summary = "ONNX QuantizeLinear";
   let description = [{

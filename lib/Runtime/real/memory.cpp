@@ -253,6 +253,29 @@ void hipdnn_ep_readback_scalar(RuntimeState *state, void *host_dst,
   }
 }
 
+// Tensor-dump readback. Same ordering and hipMemcpyDefault rationale as
+// hipdnn_ep_readback_scalar: the dumped buffer may live in the device pool,
+// host-mapped scratch, or a UMA allocation.
+int hipdnn_ep_dump_copy_to_host(RuntimeState *state, void *dst, const void *src,
+                                size_t num_bytes) {
+  if (!state || !dst || !src)
+    return -1;
+  if (num_bytes == 0)
+    return 0;
+  hipStream_t stream =
+      static_cast<hipStream_t>(hipdnn_ep_state_get_stream(state));
+  hipError_t err =
+      hipMemcpyAsync(dst, src, num_bytes, hipMemcpyDefault, stream);
+  if (err == hipSuccess)
+    err = hipStreamSynchronize(stream);
+  if (err != hipSuccess) {
+    fprintf(stderr, "hipdnn_ep_dump_copy_to_host: %s\n",
+            hipGetErrorString(err));
+    return -1;
+  }
+  return 0;
+}
+
 int wrap_copy_d2h(RuntimeState *state, void *dst_ptr, const void *src_ptr,
                   int64_t size_bytes) {
   OP_PROFILE_CPU_SHAPE(

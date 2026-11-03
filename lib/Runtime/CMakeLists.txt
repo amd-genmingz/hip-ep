@@ -292,6 +292,8 @@ compile_to_bitcode(hipdnn_ep_runtime_if.cpp runtime_if.bc)
 compile_to_bitcode(op_profile.cpp runtime_op_profile.bc)
 compile_to_bitcode(chrome_trace.cpp runtime_chrome_trace.bc)
 compile_to_bitcode(output_allocator.cpp runtime_output_allocator.bc)
+# hip.dump_tensor host side; the backend copy lives in real/ or mock/memory.cpp.
+compile_to_bitcode(tensor_dump.cpp runtime_tensor_dump.bc)
 # Op-state slots ABI + reference constructors. Shared (host-only allocation),
 # so the same TU serves both the real and mock runtimes.
 compile_to_bitcode(op_state.cpp runtime_op_state.bc)
@@ -413,6 +415,7 @@ if(NOT BUILD_MOCK_RUNTIME)
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_op_profile.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_chrome_trace.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_output_allocator.bc
+        ${CMAKE_CURRENT_BINARY_DIR}/runtime_tensor_dump.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_op_state.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_memory.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_hip.bc
@@ -535,6 +538,7 @@ else()
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_op_profile.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_chrome_trace.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_output_allocator.bc
+        ${CMAKE_CURRENT_BINARY_DIR}/runtime_tensor_dump.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_op_state.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_op_state_stubs.bc
         ${CMAKE_CURRENT_BINARY_DIR}/runtime_memory.bc

@@ -210,6 +210,10 @@ inline constexpr const char *kHipReadbackI32 = "hipdnn_ep_readback_i32";
 // such as the i64/f32/f16 operands of a data-dependent onnx.Range).
 inline constexpr const char *kHipReadbackScalar = "hipdnn_ep_readback_scalar";
 
+// Synchronize the stream and write a buffer to the tensor-dump directory
+// (hip.dump_tensor, HIPDNN_EP_DUMP_DIR).
+inline constexpr const char *kHipDumpTensor = "hipdnn_ep_dump_tensor";
+
 // LLVM memref descriptor struct field indices.
 // Layout: { allocatedPtr, alignedPtr, offset, sizes[rank], strides[rank] }
 inline constexpr int64_t kAllocPtrIdx = 0;
@@ -604,6 +608,9 @@ void populateReadbackDimLoweringPatterns(
 void populateReadbackScalarLoweringPatterns(
     const LLVMTypeConverter &converter, RewritePatternSet &patterns,
     const DenseMap<Operation *, Value> &hostScalars);
+// hip.dump_tensor: debug-only buffer dump (HIPDNN_EP_DUMP_DIR).
+void populateDumpTensorLoweringPatterns(const LLVMTypeConverter &converter,
+                                        RewritePatternSet &patterns);
 void populateSizeLoweringPatterns(const LLVMTypeConverter &converter,
                                   RewritePatternSet &patterns);
 void populateLoopLoweringPatterns(const LLVMTypeConverter &converter,

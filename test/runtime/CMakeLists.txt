@@ -37,6 +37,22 @@ add_test(NAME OutputAllocatorUnitTest COMMAND test-output-allocator)
 
 set_target_properties(test-output-allocator PROPERTIES FOLDER "runtime-tests")
 
+# hip.dump_tensor host side (tensor_dump.cpp, also runtime bitcode) against the
+# mock runtime types; the test supplies the device-to-host copy.
+add_executable(test-tensor-dump
+    test_tensor_dump.cpp
+    ${CMAKE_SOURCE_DIR}/lib/Runtime/tensor_dump.cpp
+)
+target_compile_features(test-tensor-dump PRIVATE cxx_std_17)
+target_include_directories(test-tensor-dump PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/lib/Runtime
+    ${CMAKE_SOURCE_DIR}/lib/Runtime/mock
+)
+target_compile_definitions(test-tensor-dump PRIVATE HIPDNN_EP_RT_NO_EXPORT)
+add_test(NAME TensorDumpUnitTest COMMAND test-tensor-dump)
+set_target_properties(test-tensor-dump PROPERTIES FOLDER "runtime-tests")
+
 # Header-only offset allocator behind the session transient arena.
 add_executable(test-transient-arena test_transient_arena.cpp)
 target_compile_features(test-transient-arena PRIVATE cxx_std_17)

@@ -67,6 +67,7 @@ add_library(HipToLLVM STATIC
   NonMaxSuppressionLowering.cpp
   ReadbackDimLowering.cpp
   ReadbackScalarLowering.cpp
+  DumpTensorLowering.cpp
   SizeLowering.cpp
   LoopLowering.cpp
   ScanLowering.cpp

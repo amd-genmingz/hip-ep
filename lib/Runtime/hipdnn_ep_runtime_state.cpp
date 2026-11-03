@@ -569,6 +569,7 @@ static int initialize_state_handles(RuntimeState **out_state) {
   state->loop_event = nullptr;
   state->op_states = nullptr;
   state->num_op_states = 0;
+  state->completed_inferences = 0;
 
   int device_count = 0;
   if (hipGetDeviceCount(&device_count) != hipSuccess || device_count == 0) {

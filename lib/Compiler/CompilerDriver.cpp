@@ -294,10 +294,30 @@ bool CompilerDriver::compileImpl(mlir::ModuleOp module,
   return true;
 }
 
+// HIPDNN_EP_DUMP_DIR (docs/design/tensor-dump.md): unset, empty or "0" leaves
+// the pipeline untouched. Otherwise the directory is created if needed and
+// the tensor-dump passes are added; the runtime re-reads the variable, so an
+// artifact compiled with dumps writes nothing once the variable is unset.
+static bool tensorDumpRequested() {
+  std::string dir = hip_get_env("HIPDNN_EP_DUMP_DIR");
+  if (dir.empty() || dir == "0")
+    return false;
+  if (std::error_code ec = llvm::sys::fs::create_directories(dir)) {
+    llvm::errs() << "[CompilerDriver] WARNING: HIPDNN_EP_DUMP_DIR='" << dir
+                 << "' cannot be created (" << ec.message()
+                 << "); tensor dump disabled.\n";
+    return false;
+  }
+  COMPILER_DEBUG_LOG("[CompilerDriver] HIPDNN_EP_DUMP_DIR set: inserting "
+                     "tensor dumps\n");
+  return true;
+}
+
 bool CompilerDriver::runMLIRPasses(
     mlir::ModuleOp module, const mlir::hip::CompilationOptionsT &options,
     std::string &error_message) {
   mlir::PassManager pm(module.getContext());
+  const bool dumpTensors = tensorDumpRequested();
 
   if (hipdnn_ep_timing_enabled())
     pm.enableTiming();
@@ -407,6 +427,8 @@ bool CompilerDriver::runMLIRPasses(
 
     {
       mlir::PassManager headPm(module.getContext());
+      if (dumpTensors)
+        headPm.addPass(mlir::hip::createTagOnnxOutputLocsPass());
       // Same handle plumbing as the default arm below. rocMLIR only claims
       // the subgraphs fuse-rocmlir anchors on; everything else still wants
       // the hipDNN graph passes, and CompilerAPI needs the compiled graphs to
@@ -484,6 +506,8 @@ bool CompilerDriver::runMLIRPasses(
         mlir::hip::kDefaultExternalizeMinNumElements;
     tailOpts.skipConstantData = options.skip_constant_data;
     mlir::hip::buildOnnxToHipPipelineTail(pm, tailOpts, fileSystem_);
+    if (dumpTensors)
+      pm.addPass(mlir::hip::createInsertTensorDumpPass());
 
     mlir::hip::HipToLLVMPipelineOptions rocMlirLlvmOpts;
     rocMlirLlvmOpts.constantsFile = options.constants_file;
@@ -497,6 +521,8 @@ bool CompilerDriver::runMLIRPasses(
         mlir::hip::kDefaultExternalizeMinNumElements;
     onnxToHipOpts.skipConstantData = options.skip_constant_data;
 
+    if (dumpTensors)
+      pm.addPass(mlir::hip::createTagOnnxOutputLocsPass());
     if (hipdnnHandle_) {
       compiledGraphs_ =
           std::make_shared<llvm::StringMap<mlir::hip::OwnedGraph>>();
@@ -506,6 +532,8 @@ bool CompilerDriver::runMLIRPasses(
     } else {
       mlir::hip::buildOnnxToHipPipeline(pm, onnxToHipOpts, fileSystem_);
     }
+    if (dumpTensors)
+      pm.addPass(mlir::hip::createInsertTensorDumpPass());
 
     mlir::hip::HipToLLVMPipelineOptions hipToLlvmOpts;
     hipToLlvmOpts.constantsFile = options.constants_file;

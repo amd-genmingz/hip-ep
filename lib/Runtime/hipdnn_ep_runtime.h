@@ -2124,6 +2124,23 @@ int32_t hipdnn_ep_readback_i32(RuntimeState *state, const void *device_scalar);
 void hipdnn_ep_readback_scalar(RuntimeState *state, void *host_dst,
                                const void *device_scalar, int64_t num_bytes);
 
+// Tensor dump (hip.dump_tensor, docs/design/tensor-dump.md). Writes the
+// logical tensor at `data` (element strides in `strides`) to
+// <HIPDNN_EP_DUMP_DIR>/<sanitized name>.npy and appends a line to
+// <HIPDNN_EP_DUMP_DIR>/index.jsonl. No-op unless HIPDNN_EP_DUMP_DIR is set at
+// run time, `index` is within [HIPDNN_EP_DUMP_START, HIPDNN_EP_DUMP_END], and
+// this is the session's first inference.
+void hipdnn_ep_dump_tensor(RuntimeState *state, const void *data,
+                           const int64_t *shape, const int64_t *strides,
+                           int64_t rank, int64_t elem_bytes, const char *dtype,
+                           const char *name, int64_t index);
+
+// Synchronize the stream, then copy `num_bytes` at `src` (device or
+// host-visible memory) into host `dst`. Returns 0 on success. Backend half of
+// hipdnn_ep_dump_tensor; implemented by the real and mock runtimes.
+int hipdnn_ep_dump_copy_to_host(RuntimeState *state, void *dst, const void *src,
+                                size_t num_bytes);
+
 // ONNX Size wrapper (dynamic-shape path only).
 //
 // Static-shape Size ops are folded into arith.constant at OnnxToHip time

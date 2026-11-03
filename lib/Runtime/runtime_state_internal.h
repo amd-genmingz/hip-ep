@@ -372,6 +372,12 @@ struct RuntimeState {
   // constants blob so the weights keep placement priority over it; null when
   // the session runs without an arena.
   void *transient_arena;
+
+  // Number of finished inferences, counted by hipdnn_ep_stream_sync, which
+  // generated inference_compute calls exactly once on exit.
+  // hipdnn_ep_runtime_begin_compute cannot count: both the EP and
+  // inference_compute call it. Tensor dump writes only while it is 0.
+  int64_t completed_inferences;
 };
 
 // Every session-owned device transient (pools, workspace, op scratch) must be

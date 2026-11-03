@@ -810,6 +810,42 @@ def ResolveExternConstantsPass
   ];
 }
 
+def TagOnnxOutputLocsPass
+    : Pass<"hip-tag-onnx-output-locs", "mlir::ModuleOp"> {
+  let summary = "Record each onnx.* op's ONNX output tensor names in its "
+                "Location";
+  let description = [{
+    Wraps the Location of every `onnx.*` op carrying a `node.outputs` attribute
+    in a FusedLoc whose metadata holds those output names. Conversion patterns
+    forward the source op's Location, so the names survive ONNX-to-HIP
+    conversion and bufferization and reach --hip-insert-tensor-dump.
+
+    Added to the pipeline ahead of ONNX-to-HIP only when HIPDNN_EP_DUMP_DIR is
+    set; the default pipeline does not run it.
+  }];
+}
+
+def InsertTensorDumpPass
+    : Pass<"hip-insert-tensor-dump", "mlir::ModuleOp"> {
+  let summary = "Insert hip.dump_tensor after each HIP op that produces an "
+                "ONNX tensor";
+  let description = [{
+    For every HIP destination-style op directly in a function body whose
+    Location carries ONNX output names (see --hip-tag-onnx-output-locs),
+    inserts one hip.dump_tensor per memref init right after the op. When one
+    ONNX node lowered to several HIP ops, only the last of them (in program
+    order) is dumped, because it is the one that leaves the node's final
+    value in the buffer. Ops nested in other regions are not instrumented.
+
+    Runs after memory planning and before convert-hip-to-llvm, so the dump
+    reads the buffers exactly as the production pipeline lays them out. Added
+    only when HIPDNN_EP_DUMP_DIR is set.
+  }];
+  let dependentDialects = [
+    "mlir::hip::HipDialect"
+  ];
+}
+
 def ExternalizeConstantsPass
     : Pass<"hip-externalize-constants", "mlir::ModuleOp"> {
   let summary = "Apply storage policy to hip.constant carriers";

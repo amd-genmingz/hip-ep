@@ -290,6 +290,7 @@ populateLoweringPatterns(LLVMTypeConverter &typeConverter,
   populateNonMaxSuppressionLoweringPatterns(typeConverter, patterns);
   populateReadbackDimLoweringPatterns(typeConverter, patterns, hostScalars);
   populateReadbackScalarLoweringPatterns(typeConverter, patterns, hostScalars);
+  populateDumpTensorLoweringPatterns(typeConverter, patterns);
   populateSizeLoweringPatterns(typeConverter, patterns);
   populatePoolLoweringPatterns(typeConverter, patterns);
   populateResizeLoweringPatterns(typeConverter, patterns);

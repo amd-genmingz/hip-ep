@@ -624,6 +624,7 @@ int hipdnn_ep_stream_sync(RuntimeState *state) {
     fprintf(stderr, "hipdnn_ep_stream_sync: null state\n");
     return HIPDNN_EP_ERR_NULL_POINTER;
   }
+  ++state->completed_inferences;
 
   // PERF: close any window the callbacks above left open, then record D2H end
   // (after all D2H copies queued). Under the output-allocator ABI the

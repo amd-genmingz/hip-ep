@@ -160,6 +160,8 @@ the selected perfConfig string are printed only with `--verbose`.
 | `assign-op-state-slots` | module | Assign one op-state slot per stateful op instance (op-state-slots design). No-op without stateful ops. |
 | `generate-op-state-init` | module | Emit `@hipdnn_ep_op_states_init_fn` from each stateful op's `generateOpStateInit`. No-op without stateful ops. |
 | `convert-hip-to-llvm` | module | Lower HIP ops to runtime C-API calls / LLVM dialect. |
+| `hip-tag-onnx-output-locs` | module | Debug-only (`HIPDNN_EP_DUMP_DIR`): record each `onnx.*` op's `node.outputs` names in its Location. See [tensor dump](design/tensor-dump.md). |
+| `hip-insert-tensor-dump` | module | Debug-only (`HIPDNN_EP_DUMP_DIR`): insert `hip.dump_tensor` after each HIP op that produces a tagged ONNX tensor. See [tensor dump](design/tensor-dump.md). |
 
 ### rocMLIR offload passes
 
@@ -232,6 +234,8 @@ truth: `lib/Dialect/Transforms/Pipelines.cpp`.
 
 ```
 ONNX → HIP  (buildOnnxToHipPipeline)
+  [hip-tag-onnx-output-locs]         (HIPDNN_EP_DUMP_DIR only, added by the
+                                      compiler driver)
   simplify-onnx
   «slot: AfterSimplifyOnnx»
   hip-add-context-arg
@@ -279,6 +283,8 @@ ONNX → HIP  (buildOnnxToHipPipeline)
   func.func(hip-lower-allocs)
   hip-resolve-extern-constants
   cse ; canonicalize
+  [hip-insert-tensor-dump]           (HIPDNN_EP_DUMP_DIR only, added by the
+                                      compiler driver)
 
 HIP → LLVM  (buildHipToLLVMPipeline)
   func.func(hip-relax-multi-dyn-expand-shape)

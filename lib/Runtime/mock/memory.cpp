@@ -110,3 +110,12 @@ int wrap_strided_copy(RuntimeState *state, void *dst_ptr, const void *src_ptr,
   }
   return 0;
 }
+
+// Mock "device" memory is host memory: the tensor-dump readback is a memcpy.
+int hipdnn_ep_dump_copy_to_host(RuntimeState *state, void *dst, const void *src,
+                                size_t num_bytes) {
+  if (!state || !dst || !src)
+    return -1;
+  memcpy(dst, src, num_bytes);
+  return 0;
+}
